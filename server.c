@@ -237,7 +237,7 @@
     }
     pthread_mutex_unlock(&clientlist_mutex);
     }
-    else if(!strcmp(packet.option, "whisp")) {
+    else if(!strcmp(packet.option, "send_all")) {
     int i;
     char target[ALIASLEN];
     for(i = 0; packet.buff[i] != ' '; i++); packet.buff[i++] = 0;
