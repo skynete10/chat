@@ -93,7 +93,7 @@
     setalias(&me);
     }
     }
-    else if(!strncmp(option, "whisp", 5)) {
+    else if(!strncmp(option, "send_all", 5)) {
     char *ptr = strtok(option, " ");
     char temp[ALIASLEN];
     ptr = strtok(0, " ");
@@ -258,7 +258,7 @@
     msg[BUFFSIZE] = 0;
     targetlen = strlen(target);
     memset(&packet, 0, sizeof(struct PACKET));
-    strcpy(packet.option, "whisp");
+    strcpy(packet.option, "send_all");
     strcpy(packet.alias, me->alias);
     strcpy(packet.buff, target);
     strcpy(&packet.buff[targetlen], " ");
