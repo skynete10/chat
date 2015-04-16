@@ -304,18 +304,11 @@ fprintf(stderr, "You are not connected...\n");
 return;
 }
  
-    char buffer[256];
-    
-
-    
-    /* Create file where data will be stored */
-
-    FILE *fp;
-    fp=fopen(msg, "r");
-
-    /*Displaying content of file on console*/
-    printf("%s",buffer);
-    fread(buffer, 1, 255, fp);
+    char buff[1024];
+FILE *f = fopen(msg, "r");
+  fgets(buff, 1024, f);
+  
+fprintf(stderr,"sending...%s to %s...\n",buff,target);
    
            
            
@@ -326,7 +319,7 @@ strcpy(packet.option, "sfile");
 strcpy(packet.alias, me->alias);
 strcpy(packet.buff, target);
 strcpy(&packet.buff[targetlen], " ");
-strcpy(&packet.buff[targetlen+1], buffer);
+strcpy(&packet.buff[targetlen+1], buff);
 /* send request to close this connetion */
 sent = send(sockfd, (void *)&packet, sizeof(struct PACKET), 0);
 }
