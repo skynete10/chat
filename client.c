@@ -2,33 +2,41 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
- #include <termios.h>
 #include <netdb.h>
 #include <unistd.h>
 #include <pthread.h>
-
+#include </home/skynete10/Desktop/cryptage.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#define SERVERIP "127.0.0.1"
-#define SERVERPORT 8080
+#define SERVERIP "192.168.0.102"
+#define SERVERPORT 2004
 
 #define BUFFSIZE 1024
-#define ALIASLEN 32
+#define userLEN 32
 #define OPTLEN 16
+#define FILEBUFF 20000
 #define LINEBUFF 2048
 #define LENGTH 512
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
+#define ANSI_COLOR_BLUE    "\x1b[34m"
+#define ANSI_COLOR_MAGENTA "\x1b[35m"
+#define ANSI_COLOR_CYAN    "\x1b[36m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
 struct PACKET {
-char option[OPTLEN]; // instruction
-char alias[ALIASLEN]; // client's username
+char option[OPTLEN]; 
+char user[userLEN]; 
 char buff[BUFFSIZE]; // message size
 
 };
+
 struct USER {
 int sockfd; // user's socket file descriptor: objets génériques avec des méthodes génériques (open(), close(), read(), write(), ...).
-char alias[ALIASLEN]; // user's name
+char user[userLEN]; // user's name
 };
 struct THREADINFO {
 pthread_t thread_ID; // thread's pointer:récupérer l'ID d'un thread
@@ -37,55 +45,36 @@ int sockfd; // socket file descriptor
 int isconnected, sockfd;
 char option[LINEBUFF];
 struct USER me;
- static struct termios oldt;
 
-void restore_terminal_settings(void)
-{
-    tcsetattr(0, TCSANOW, &oldt);  /* Apply saved settings */
-}
-
-void disable_waiting_for_enter(void)
-{
-    struct termios newt;
-
-    /* Make terminal read 1 char at a time */
-    tcgetattr(0, &oldt);  /* Save terminal settings */
-    newt = oldt;  /* Init new settings */
-    newt.c_lflag &= ~(ICANON | ECHO);  /* Change settings */
-    tcsetattr(0, TCSANOW, &newt);  /* Apply settings */
-    atexit(restore_terminal_settings); /* Make sure settings will be restored when program ends  */
-}
 int connect_with_server();
-void setalias(struct USER *me);//set username
+void setuser(struct USER *me);//set username
 void logout(struct USER *me);//desconnecter de serveur
 void login(struct USER *me);//login
 void *receiver(void *param);//receive message
-void *receiverfile(void *param);
 void sendtoall(struct USER *me, char *msg); //broadcast
 void sendtoclient(struct USER *me, char * target, char *msg);//send to specific user
-int main(int argc, char **argv) {/*Largv est un tableau de pointeurs:Chacun de ces pointeurs pointe sur des chaînes de caractères
-argc indique simplement le nombre de chaînes de caractères sur lequel pointe argv.Par exemple, si argc vaut 2, cela veut dire que argv pointe sur deux chaînes de caractères*/
-void sendfile(struct USER *me, char * target,char *msg);
-int sockfd, aliaslen;
-memset(&me, 0, sizeof(struct USER));/*3 arguments. Le premier est la zone mémoire que nous voulons remplir, le deuxième est le caractère de remplissage et le dernier définit la taille
-remplir une zone mémoire avec un caractère désiré.*/
+void sendencrypt(struct USER *me, char * target, char *msg);
+void sendfile(struct USER *me, char * target, char *msg);
+int main(int argc, char **argv) {
+int sockfd, userlen;
+memset(&me, 0, sizeof(struct USER));
 while(gets(option)) {
-if(!strncmp(option, "exit", 4)) {/*strncmp:permettait de comparer deux chaines de caractères sauf qu'elle permet de comparer au maximum les n premiers octets des 2 chaines de caractères. Le n est le troisième argument de la fonction, les deux premiers étant les deux chaines de caractères à comparer.*/
+if(!strncmp(option, "exit", 4)) {
 logout(&me);
 break;
 }
 else if(!strncmp(option, "login", 5)) {
 char *ptr = strtok(option, " ");
 ptr = strtok(0, " ");//set ptr as username
-memset(me.alias, 0, sizeof(char) * ALIASLEN);
+memset(me.user, 0, sizeof(char) * userLEN);
 if(ptr != NULL) {
-aliaslen = strlen(ptr);//strlen:calcule la longeur du chaine de caractere
-if(aliaslen > ALIASLEN) ptr[ALIASLEN] = 0;
-strcpy(me.alias, ptr);//copy ptr in me.alias
+userlen = strlen(ptr);//strlen:calcule la longeur du chaine de caractere
+if(userlen > userLEN) ptr[userLEN] = 0;
+strcpy(me.user, ptr);//copy ptr in me.user
 }
 else {
 
-strcpy(me.alias, "Anonymous");//copy Anonymous to me.alias
+strcpy(me.user, "default");//copy default to me.user
 
 
 
@@ -95,44 +84,55 @@ login(&me);
 else if(!strncmp(option, "change", 6)) {
 char *ptr = strtok(option, " ");
 ptr = strtok(0, " ");
-memset(me.alias, 0, sizeof(char) * ALIASLEN);
+memset(me.user, 0, sizeof(char) * userLEN);
 if(ptr != NULL) {
-aliaslen = strlen(ptr);
-if(aliaslen > ALIASLEN) ptr[ALIASLEN] = 0;
-strcpy(me.alias, ptr);
-setalias(&me);
+userlen = strlen(ptr);
+if(userlen > userLEN) ptr[userLEN] = 0;
+strcpy(me.user, ptr);
+setuser(&me);
 }
 }
 else if(!strncmp(option, "specf", 5)) {
 char *ptr = strtok(option, " ");
-char temp[ALIASLEN];
+char temp[userLEN];
 ptr = strtok(0, " ");
-memset(temp, 0, sizeof(char) * ALIASLEN);
+memset(temp, 0, sizeof(char) * userLEN);
 if(ptr != NULL) {
-aliaslen = strlen(ptr);
-if(aliaslen > ALIASLEN) ptr[ALIASLEN] = 0;
+userlen = strlen(ptr);
+if(userlen > userLEN) ptr[userLEN] = 0;
 strcpy(temp, ptr);
 while(*ptr) ptr++; ptr++;
 while(*ptr <= ' ') ptr++;
 sendtoclient(&me, temp, ptr);
 }
 }
-else if(!strncmp(option, "sfile", 5)) {
+else if(!strncmp(option, "encrypt", 7)) {
 char *ptr = strtok(option, " ");
-char temp[ALIASLEN];
+char temp[userLEN];
 ptr = strtok(0, " ");
-memset(temp, 0, sizeof(char) * ALIASLEN);
+memset(temp, 0, sizeof(char) * userLEN);
 if(ptr != NULL) {
-aliaslen = strlen(ptr);
-if(aliaslen > ALIASLEN) ptr[ALIASLEN] = 0;
+userlen = strlen(ptr);
+if(userlen > userLEN) ptr[userLEN] = 0;
 strcpy(temp, ptr);
 while(*ptr) ptr++; ptr++;
 while(*ptr <= ' ') ptr++;
-sendfile(&me, temp, ptr);
+sendencrypt(&me, temp, ptr);
 }
 }
 else if(!strncmp(option, "send", 4)) {
 sendtoall(&me, &option[5]);
+}
+else if(!strncmp(option, "list", 4)) {
+FILE *fp;
+ char ch, file_name[25];
+fp=fopen("/home/skynete10/Desktop/username.txt", "r");
+ printf(ANSI_COLOR_BLUE "The contents of chatroom :\n" ANSI_COLOR_RESET);
+ 
+   while( ( ch = fgetc(fp) ) != EOF )
+      printf(ANSI_COLOR_GREEN "%c" ANSI_COLOR_RESET,ch);
+ 
+   fclose(fp);
 }
 else if(!strncmp(option, "logout", 6)) {
 logout(&me);
@@ -152,12 +152,16 @@ sockfd = connect_with_server();
 if(sockfd >= 0) {
 isconnected = 1;
 me->sockfd = sockfd;
-if(strcmp(me->alias, "Anonymous")) setalias(me);
-printf("Logged in as %s\n", me->alias);
-printf("Receiver started [%d]...\n", sockfd);
+if(strcmp(me->user, "default")) setuser(me);
+printf("Logged in as %s\n", me->user);
+printf(ANSI_COLOR_YELLOW "ready to send and receive messages [%d]\n" ANSI_COLOR_RESET, sockfd);
+sleep(1);
 struct THREADINFO threadinfo;
 pthread_create(&threadinfo.thread_ID, NULL, receiver, (void *)&threadinfo);
-
+FILE *fp;
+fp=fopen("/home/skynete10/Desktop/username.txt", "a");
+ fprintf(fp, "username: %s\n",me->user);
+   fclose(fp);
 }
 else {
 fprintf(stderr, "Connection rejected...\n");
@@ -210,13 +214,13 @@ return;
 }
 memset(&packet, 0, sizeof(struct PACKET));
 strcpy(packet.option, "exit");
-strcpy(packet.alias, me->alias);
+strcpy(packet.user, me->user);
 /* send request to close this connetion */
 sent = send(sockfd, (void *)&packet, sizeof(struct PACKET), 0);
 isconnected = 0;
 }
 
-void setalias(struct USER *me) {
+void setuser(struct USER *me) {
 int sent;
 struct PACKET packet;
 if(!isconnected) {
@@ -225,25 +229,32 @@ return;
 }
 memset(&packet, 0, sizeof(struct PACKET));
 strcpy(packet.option, "change");
-strcpy(packet.alias, me->alias);
+strcpy(packet.user, me->user);
 /* send request to close this connetion */
 sent = send(sockfd, (void *)&packet, sizeof(struct PACKET), 0);//send packet
 }
 
 void *receiver(void *param) {
+
 int recvd;
 struct PACKET packet;
-printf("Waiting here [%d]...\n", sockfd);
+printf("Waiting for messages from other clients  [%d]...\n" , sockfd);
 while(isconnected) {
 recvd = recv(sockfd, (void *)&packet, sizeof(struct PACKET), 0);
 if(!recvd) {
-fprintf(stderr, "Connection lost from server...\n");
+fprintf(stderr, ANSI_COLOR_RED "Connection lost from server...\n" ANSI_COLOR_RESET);
 isconnected = 0;
 close(sockfd);
 break;
 }
 if(recvd > 0) {
-printf("[%s]: %s\n", packet.alias, packet.buff);
+
+if(!strcmp(packet.option, "msg")){
+printf("[%s]: %s\n", packet.user, packet.buff);
+}else{
+printf(ANSI_COLOR_BLUE "encrypted message from [%s]: %s\n" ANSI_COLOR_RESET, packet.user, packet.buff);
+}
+
 }
 memset(&packet, 0, sizeof(struct PACKET));
 }
@@ -261,7 +272,7 @@ return;
 msg[BUFFSIZE] = 0;
 memset(&packet, 0, sizeof(struct PACKET));
 strcpy(packet.option, "send");
-strcpy(packet.alias, me->alias);
+strcpy(packet.user, me->user);
 strcpy(packet.buff, msg);
 /* send request to close this connetion */
 sent = send(sockfd, (void *)&packet, sizeof(struct PACKET), 0);
@@ -284,42 +295,38 @@ msg[BUFFSIZE] = 0;
 targetlen = strlen(target);
 memset(&packet, 0, sizeof(struct PACKET));
 strcpy(packet.option, "specf");
-strcpy(packet.alias, me->alias);
+strcpy(packet.user, me->user);
 strcpy(packet.buff, target);
 strcpy(&packet.buff[targetlen], " ");
 strcpy(&packet.buff[targetlen+1], msg);
 /* send request to close this connetion */
 sent = send(sockfd, (void *)&packet, sizeof(struct PACKET), 0);
 }
-void sendfile(struct USER *me, char *target, char *msg) {
+void sendencrypt(struct USER *me, char *target, char *msg) {
 int sent, targetlen;
 struct PACKET packet;
-
 if(target == NULL) {
 return;
 }
-
+if(msg == NULL) {
+return;
+}
 if(!isconnected) {
 fprintf(stderr, "You are not connected...\n");
 return;
 }
- 
-    char buff[1024];
-FILE *f = fopen(msg, "r");
-  fgets(buff, 1024, f);
-  
-fprintf(stderr,"sending...%s to %s...\n",buff,target);
-   
-           
-           
+int a=bin(msg);
+
+char *c=(char*)&a;
+printf(ANSI_COLOR_RED "message encrypted : %s\n" ANSI_COLOR_RESET,c);
 msg[BUFFSIZE] = 0;
 targetlen = strlen(target);
 memset(&packet, 0, sizeof(struct PACKET));
-strcpy(packet.option, "sfile");
-strcpy(packet.alias, me->alias);
+strcpy(packet.option, "encrypt");
+strcpy(packet.user, me->user);
 strcpy(packet.buff, target);
 strcpy(&packet.buff[targetlen], " ");
-strcpy(&packet.buff[targetlen+1], buff);
+strcpy(&packet.buff[targetlen+1],c);
 /* send request to close this connetion */
 sent = send(sockfd, (void *)&packet, sizeof(struct PACKET), 0);
 }
