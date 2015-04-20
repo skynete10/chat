@@ -9,12 +9,13 @@
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#define IP "192.168.0.102"
-#define PORT 2004
+#define IP "127.0.0.1"
+#define PORT 8080
 #define BACKLOG 10
 #define CLIENTS 10
 #define BUFFSIZE 1024
 #define FILESIZE 20000
+#define NAMESIZE 16
 #define ALIASLEN 32
 #define OPTLEN 16
 #define LENGTH 512
@@ -29,6 +30,7 @@ struct PACKET {
 char option[OPTLEN]; // instruction
 char user[ALIASLEN]; // client's user
 char buff[BUFFSIZE]; // payload
+char name[FILESIZE];
 };
 
 
@@ -140,6 +142,23 @@ return err_ret;
 }
 /* initiate interrupt handler for IO controlling */
 printf(ANSI_COLOR_BLUE "Starting server...\n" ANSI_COLOR_RESET);
+sleep(1);
+int rows, star, spaces;
+        int number_of_stars = 6;
+        int number_of_rows = number_of_stars;
+
+        for (rows=1; rows <= number_of_rows; rows++) {
+                for (spaces=1; spaces <= number_of_stars; spaces++) {
+                        printf(" ");
+                }
+                for (star=1; star <= rows; star++) {
+                        printf("*");
+                        printf(" ");
+                }
+                printf("\n");
+                number_of_stars = number_of_stars - 1;
+        }
+
 if(pthread_create(&interrupt, NULL, io_handler, NULL) != 0) {
 err_ret = errno;
 fprintf(stderr, "pthread_create() failed...\n");
@@ -187,7 +206,7 @@ list_dump(&client_list);
 pthread_mutex_unlock(&clientlist_mutex);
 }
 else {
-fprintf(stderr, "Unknown command: %s...\n", option);
+fprintf(stderr, ANSI_COLOR_RED "Unknown command: %s...\n" ANSI_COLOR_RESET, option);
 }
 }
 return NULL;
@@ -202,7 +221,7 @@ while(1) {
 bytes = recv(threadinfo.sockfd, (void *)&packet, sizeof(struct PACKET), 0);
 
 if(!bytes) {
-fprintf(stderr, "Connection lost from [%d] %s...\n", threadinfo.sockfd, threadinfo.user);
+fprintf(stderr, ANSI_COLOR_RED "Connection lost from [%d] %s...\n" ANSI_COLOR_RESET, threadinfo.sockfd, threadinfo.user);
 pthread_mutex_lock(&clientlist_mutex);
 list_delete(&client_list, &threadinfo);
 pthread_mutex_unlock(&clientlist_mutex);
@@ -234,8 +253,29 @@ if(strcmp(target, curr->threadinfo.user) == 0) {
 struct PACKET spacket;
 memset(&spacket, 0, sizeof(struct PACKET));
 if(!compare(&curr->threadinfo, &threadinfo)) continue;
-strcpy(spacket.option, "msg");
+strcpy(spacket.option, "specf");
 strcpy(spacket.user, packet.user);
+strcpy(spacket.buff, &packet.buff[i]);
+sent = send(curr->threadinfo.sockfd, (void *)&spacket, sizeof(struct PACKET), 0);
+}
+}
+pthread_mutex_unlock(&clientlist_mutex);
+}
+else if(!strcmp(packet.option, "sfile")) {
+int i;
+char target[ALIASLEN];
+for(i = 0; packet.buff[i] != ' '; i++); packet.buff[i++] = 0;
+strcpy(target, packet.buff);
+pthread_mutex_lock(&clientlist_mutex);
+for(curr = client_list.head; curr != NULL; curr = curr->next) {
+if(strcmp(target, curr->threadinfo.user) == 0) {
+struct PACKET spacket;
+memset(&spacket, 0, sizeof(struct PACKET));
+if(!compare(&curr->threadinfo, &threadinfo)) continue;
+strcpy(spacket.option, "sfile");
+strcpy(spacket.user, packet.user);
+strcpy(spacket.name, packet.name);
+
 strcpy(spacket.buff, &packet.buff[i]);
 sent = send(curr->threadinfo.sockfd, (void *)&spacket, sizeof(struct PACKET), 0);
 }
@@ -271,6 +311,7 @@ if(!compare(&curr->threadinfo, &threadinfo)) continue;
 strcpy(spacket.option, "msg");
 strcpy(spacket.user, packet.user);
 strcpy(spacket.buff, packet.buff);
+strcpy(spacket.name,packet.name);
 sent = send(curr->threadinfo.sockfd, (void *)&spacket, sizeof(struct PACKET), 0);
 }
 pthread_mutex_unlock(&clientlist_mutex);
