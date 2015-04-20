@@ -5,20 +5,21 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <pthread.h>
-#include </home/skynete10/Desktop/cryptage.h>
+#include </home/ubuntu/Desktop/cryptage.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#define SERVERIP "192.168.0.102"
-#define SERVERPORT 2004
+#define SERVERIP "127.0.0.1"
+#define SERVERPORT 8080
 
 #define BUFFSIZE 1024
 #define userLEN 32
 #define OPTLEN 16
 #define FILEBUFF 20000
 #define LINEBUFF 2048
+#define NAMESIZE 16
 #define LENGTH 512
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_GREEN   "\x1b[32m"
@@ -27,11 +28,12 @@
 #define ANSI_COLOR_MAGENTA "\x1b[35m"
 #define ANSI_COLOR_CYAN    "\x1b[36m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
+#define pink "\e[35m"
 struct PACKET {
 char option[OPTLEN]; 
 char user[userLEN]; 
 char buff[BUFFSIZE]; // message size
-
+char name[NAMESIZE];
 };
 
 struct USER {
@@ -54,7 +56,7 @@ void *receiver(void *param);//receive message
 void sendtoall(struct USER *me, char *msg); //broadcast
 void sendtoclient(struct USER *me, char * target, char *msg);//send to specific user
 void sendencrypt(struct USER *me, char * target, char *msg);
-void sendfile(struct USER *me, char * target, char *msg);
+void sendfile(struct USER *me, char * target, char *fname,char *buff);
 int main(int argc, char **argv) {
 int sockfd, userlen;
 memset(&me, 0, sizeof(struct USER));
@@ -106,6 +108,21 @@ while(*ptr <= ' ') ptr++;
 sendtoclient(&me, temp, ptr);
 }
 }
+else if(!strncmp(option, "sfile", 5)) {
+char *ptr = strtok(option, " ");
+char temp[userLEN];
+char *buff;
+ptr = strtok(0, " ");
+memset(temp, 0, sizeof(char) * userLEN);
+if(ptr != NULL) {
+userlen = strlen(ptr);
+if(userlen > userLEN) ptr[userLEN] = 0;
+strcpy(temp, ptr);
+while(*ptr) ptr++; ptr++;
+while(*ptr <= ' ') ptr++;
+sendfile(&me, temp, ptr,buff);
+}
+}
 else if(!strncmp(option, "encrypt", 7)) {
 char *ptr = strtok(option, " ");
 char temp[userLEN];
@@ -124,15 +141,7 @@ else if(!strncmp(option, "send", 4)) {
 sendtoall(&me, &option[5]);
 }
 else if(!strncmp(option, "list", 4)) {
-FILE *fp;
- char ch, file_name[25];
-fp=fopen("/home/skynete10/Desktop/username.txt", "r");
- printf(ANSI_COLOR_BLUE "The contents of chatroom :\n" ANSI_COLOR_RESET);
- 
-   while( ( ch = fgetc(fp) ) != EOF )
-      printf(ANSI_COLOR_GREEN "%c" ANSI_COLOR_RESET,ch);
- 
-   fclose(fp);
+
 }
 else if(!strncmp(option, "logout", 6)) {
 logout(&me);
@@ -153,15 +162,12 @@ if(sockfd >= 0) {
 isconnected = 1;
 me->sockfd = sockfd;
 if(strcmp(me->user, "default")) setuser(me);
-printf("Logged in as %s\n", me->user);
+printf(pink "Logged in as %s\n" ANSI_COLOR_RESET, me->user);
 printf(ANSI_COLOR_YELLOW "ready to send and receive messages [%d]\n" ANSI_COLOR_RESET, sockfd);
 sleep(1);
 struct THREADINFO threadinfo;
 pthread_create(&threadinfo.thread_ID, NULL, receiver, (void *)&threadinfo);
-FILE *fp;
-fp=fopen("/home/skynete10/Desktop/username.txt", "a");
- fprintf(fp, "username: %s\n",me->user);
-   fclose(fp);
+
 }
 else {
 fprintf(stderr, "Connection rejected...\n");
@@ -250,11 +256,25 @@ break;
 if(recvd > 0) {
 
 if(!strcmp(packet.option, "msg")){
-printf("[%s]: %s\n", packet.user, packet.buff);
-}else{
-printf(ANSI_COLOR_BLUE "encrypted message from [%s]: %s\n" ANSI_COLOR_RESET, packet.user, packet.buff);
+printf(ANSI_COLOR_YELLOW "broadcast from [%s]: %s \n" ANSI_COLOR_RESET, packet.user, packet.buff);
 }
+if(!strcmp(packet.option, "specf")){
+printf(ANSI_COLOR_BLUE "message from [%s]: %s \n" ANSI_COLOR_RESET, packet.user, packet.buff);
+}
+if(!strcmp(packet.option, "encrypt")){
+printf(ANSI_COLOR_CYAN "encrypted message from [%s]: %s \n" ANSI_COLOR_RESET, packet.user, packet.buff);
+}
+if(!strcmp(packet.option, "sfile")){
 
+printf(ANSI_COLOR_GREEN "recieved file from [%s]: contenu: %s file name: %s \n" ANSI_COLOR_RESET, packet.user, packet.buff,packet.name);
+
+FILE *f = fopen(packet.name, "w");
+
+    fprintf(f,"%s\n", packet.buff);
+
+
+
+}
 }
 memset(&packet, 0, sizeof(struct PACKET));
 }
@@ -265,6 +285,7 @@ char revbuf[LENGTH];
 void sendtoall(struct USER *me, char *msg) {
 int sent;
 struct PACKET packet;
+
 if(!isconnected) {
 fprintf(stderr, "You are not connected...\n");
 return;
@@ -299,6 +320,33 @@ strcpy(packet.user, me->user);
 strcpy(packet.buff, target);
 strcpy(&packet.buff[targetlen], " ");
 strcpy(&packet.buff[targetlen+1], msg);
+/* send request to close this connetion */
+sent = send(sockfd, (void *)&packet, sizeof(struct PACKET), 0);
+}
+void sendfile(struct USER *me, char *target, char *msg,char *buff) {
+int sent, targetlen;
+struct PACKET packet;
+
+buff="asdS";
+if(target == NULL) {
+return;
+}
+if(msg == NULL) {
+return;
+}
+if(!isconnected) {
+fprintf(stderr, "You are not connected...\n");
+return;
+}
+msg[BUFFSIZE] = 0;
+targetlen = strlen(target);
+memset(&packet, 0, sizeof(struct PACKET));
+strcpy(packet.option, "sfile");
+strcpy(packet.user, me->user);
+strcpy(packet.buff, target);
+strcpy(packet.name, msg);
+strcpy(&packet.buff[targetlen], " ");
+strcpy(&packet.buff[targetlen+1], buff);
 /* send request to close this connetion */
 sent = send(sockfd, (void *)&packet, sizeof(struct PACKET), 0);
 }
