@@ -5,7 +5,7 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <pthread.h>
-#include </home/ubuntu/Desktop/cryptage.h>
+#include </home/skynete10/Desktop/cryptage.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/types.h>
@@ -137,8 +137,8 @@ while(*ptr <= ' ') ptr++;
 sendencrypt(&me, temp, ptr);
 }
 }
-else if(!strncmp(option, "send", 4)) {
-sendtoall(&me, &option[5]);
+else if(!strncmp(option, "broadcast", 9)) {
+sendtoall(&me, &option[9]);
 }
 else if(!strncmp(option, "list", 4)) {
 
@@ -162,8 +162,8 @@ if(sockfd >= 0) {
 isconnected = 1;
 me->sockfd = sockfd;
 if(strcmp(me->user, "default")) setuser(me);
-printf(pink "Logged in as %s\n" ANSI_COLOR_RESET, me->user);
-printf(ANSI_COLOR_YELLOW "ready to send and receive messages [%d]\n" ANSI_COLOR_RESET, sockfd);
+printf(pink "%s est Connecté\n" ANSI_COLOR_RESET, me->user);
+printf(ANSI_COLOR_YELLOW "prêt à envoyer et recevoir des messages \n" ANSI_COLOR_RESET);
 sleep(1);
 struct THREADINFO threadinfo;
 pthread_create(&threadinfo.thread_ID, NULL, receiver, (void *)&threadinfo);
@@ -206,7 +206,7 @@ fprintf(stderr, "connect() error...\n");
 return err_ret;
 }
 else {
-printf("Connected to server at %s:%d\n", SERVERIP, SERVERPORT);
+printf("Connecté au serveur au %s:%d\n", SERVERIP, SERVERPORT);
 return newfd;
 }
 }
@@ -244,11 +244,11 @@ void *receiver(void *param) {
 
 int recvd;
 struct PACKET packet;
-printf("Waiting for messages from other clients  [%d]...\n" , sockfd);
+printf("En attente de messages d'autres clients...\n");
 while(isconnected) {
 recvd = recv(sockfd, (void *)&packet, sizeof(struct PACKET), 0);
 if(!recvd) {
-fprintf(stderr, ANSI_COLOR_RED "Connection lost from server...\n" ANSI_COLOR_RESET);
+fprintf(stderr, ANSI_COLOR_RED "Connexion perdue du serveur...\n" ANSI_COLOR_RESET);
 isconnected = 0;
 close(sockfd);
 break;
@@ -256,22 +256,22 @@ break;
 if(recvd > 0) {
 
 if(!strcmp(packet.option, "msg")){
-printf(ANSI_COLOR_YELLOW "broadcast from [%s]: %s \n" ANSI_COLOR_RESET, packet.user, packet.buff);
+printf(ANSI_COLOR_YELLOW "diffuser à partir [%s]: %s \n" ANSI_COLOR_RESET, packet.user, packet.buff);
 }
 if(!strcmp(packet.option, "specf")){
-printf(ANSI_COLOR_BLUE "message from [%s]: %s \n" ANSI_COLOR_RESET, packet.user, packet.buff);
+printf(ANSI_COLOR_BLUE "message de[%s]: %s \n" ANSI_COLOR_RESET, packet.user, packet.buff);
 }
 if(!strcmp(packet.option, "encrypt")){
-printf(ANSI_COLOR_CYAN "encrypted message from [%s]: %s \n" ANSI_COLOR_RESET, packet.user, packet.buff);
+printf(ANSI_COLOR_CYAN "message chiffré à partir de [%s]: %s \n" ANSI_COLOR_RESET, packet.user, packet.buff);
 }
 if(!strcmp(packet.option, "sfile")){
 
-printf(ANSI_COLOR_GREEN "recieved file from [%s]: contenu: %s file name: %s \n" ANSI_COLOR_RESET, packet.user, packet.buff,packet.name);
+printf(ANSI_COLOR_GREEN "reçu fichier à partir de [%s]: contenu: %s nom du fichier: %s \n" ANSI_COLOR_RESET, packet.user, packet.buff,packet.name);
 
-FILE *f = fopen(packet.name, "w");
+FILE *f = fopen(packet.name, "a");
 
     fprintf(f,"%s\n", packet.buff);
-
+fclose(f);
 
 
 }
@@ -287,7 +287,7 @@ int sent;
 struct PACKET packet;
 
 if(!isconnected) {
-fprintf(stderr, "You are not connected...\n");
+fprintf(stderr, "Vous n'êtes pas connecté...\n");
 return;
 }
 msg[BUFFSIZE] = 0;
@@ -309,7 +309,7 @@ if(msg == NULL) {
 return;
 }
 if(!isconnected) {
-fprintf(stderr, "You are not connected...\n");
+fprintf(stderr, "Vous n'êtes pas connecté...\n");
 return;
 }
 msg[BUFFSIZE] = 0;
@@ -335,7 +335,7 @@ if(msg == NULL) {
 return;
 }
 if(!isconnected) {
-fprintf(stderr, "You are not connected...\n");
+fprintf(stderr, "Vous n'êtes pas connecté...\n");
 return;
 }
 msg[BUFFSIZE] = 0;
@@ -360,13 +360,13 @@ if(msg == NULL) {
 return;
 }
 if(!isconnected) {
-fprintf(stderr, "You are not connected...\n");
+fprintf(stderr, "Vous n'êtes pas connecté...\n");
 return;
 }
-int a=bin(msg);
+int a=1;
 
 char *c=(char*)&a;
-printf(ANSI_COLOR_RED "message encrypted : %s\n" ANSI_COLOR_RESET,c);
+printf(ANSI_COLOR_RED "message chiffré : %s\n" ANSI_COLOR_RESET,c);
 msg[BUFFSIZE] = 0;
 targetlen = strlen(target);
 memset(&packet, 0, sizeof(struct PACKET));
