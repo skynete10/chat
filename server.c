@@ -97,7 +97,7 @@ return -1;
 void list_dump(struct LLIST *ll) {
 struct LLNODE *curr;
 struct THREADINFO *thr_info;
-printf(ANSI_COLOR_GREEN "online users: %d\n" ANSI_COLOR_RESET, ll->size);
+printf(ANSI_COLOR_GREEN "utilisateurs en ligne: %d\n" ANSI_COLOR_RESET, ll->size);
 for(curr = ll->head; curr != NULL; curr = curr->next) {
 thr_info = &curr->threadinfo;
 printf(ANSI_COLOR_GREEN "[%d] %s\n" ANSI_COLOR_RESET, thr_info->sockfd, thr_info->user);
@@ -120,7 +120,7 @@ pthread_mutex_init(&clientlist_mutex, NULL);
 /* open a socket */
 if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
 err_ret = errno;
-fprintf(stderr, "socket() failed...\n");
+fprintf(stderr, "socket () a échoué...\n");
 return err_ret;
 }
 /* set initial values */
@@ -131,20 +131,20 @@ memset(&(serv_addr.sin_zero), 0, 8);
 /* bind address with socket */
 if(bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(struct sockaddr)) == -1) {
 err_ret = errno;
-fprintf(stderr, "bind() failed...\n");
+fprintf(stderr, "bind() a échoué...\n");
 return err_ret;
 }
 /* start listening for connection */
 if(listen(sockfd, BACKLOG) == -1) {
 err_ret = errno;
-fprintf(stderr, "listen() failed...\n");
+fprintf(stderr, "listen() a échoué...\n");
 return err_ret;
 }
 /* initiate interrupt handler for IO controlling */
-printf(ANSI_COLOR_BLUE "Starting server...\n" ANSI_COLOR_RESET);
+printf(ANSI_COLOR_BLUE "serveur ouvert=====>\n" ANSI_COLOR_RESET);
 sleep(1);
 int rows, star, spaces;
-        int number_of_stars = 6;
+        int number_of_stars = 10;int i=0;
         int number_of_rows = number_of_stars;
 
         for (rows=1; rows <= number_of_rows; rows++) {
@@ -152,33 +152,39 @@ int rows, star, spaces;
                         printf(" ");
                 }
                 for (star=1; star <= rows; star++) {
-                        printf("*");
+                        printf(ANSI_COLOR_MAGENTA "*" ANSI_COLOR_RESET);
                         printf(" ");
                 }
                 printf("\n");
                 number_of_stars = number_of_stars - 1;
         }
 
+       for(i=0;i<10;i++){
+printf(ANSI_COLOR_GREEN "=" ANSI_COLOR_RESET);
+
+       }
+        printf( ANSI_COLOR_GREEN ">" ANSI_COLOR_RESET);
+
 if(pthread_create(&interrupt, NULL, io_handler, NULL) != 0) {
 err_ret = errno;
-fprintf(stderr, "pthread_create() failed...\n");
+fprintf(stderr, "pthread_create() a échoué...\n");
 return err_ret;
 }
 /* keep accepting connections */
-printf(ANSI_COLOR_GREEN "accepting connections...\n" ANSI_COLOR_RESET);
+printf(ANSI_COLOR_GREEN "attend du connection des clients======>\n" ANSI_COLOR_RESET);
 while(1) {
 sin_size = sizeof(struct sockaddr_in);
 if((newfd = accept(sockfd, (struct sockaddr *)&client_addr, (socklen_t*)&sin_size)) == -1) {
 err_ret = errno;
-fprintf(stderr, "accept() failed...\n");
+fprintf(stderr, "accept() a échoué...\n");
 return err_ret;
 }
 else {
 if(client_list.size == CLIENTS) {
-fprintf(stderr, "Connection full, request rejected...\n");
+fprintf(stderr, "Connexion complète, demande rejetée...\n");
 continue;
 }
-printf("Connection requested received...\n");
+printf("Demande de connexion reçue...\n");
 struct THREADINFO threadinfo;
 threadinfo.sockfd = newfd;
 strcpy(threadinfo.user, "default");
@@ -195,7 +201,7 @@ char option[OPTLEN];
 while(scanf("%s", option)==1) {
 if(!strcmp(option, "exit")) {
 /* clean up */
-printf("Terminating server...\n");
+printf("serveur deteruit...\n");
 pthread_mutex_destroy(&clientlist_mutex);
 close(sockfd);
 exit(0);
@@ -206,7 +212,7 @@ list_dump(&client_list);
 pthread_mutex_unlock(&clientlist_mutex);
 }
 else {
-fprintf(stderr, ANSI_COLOR_RED "Unknown command: %s...\n" ANSI_COLOR_RESET, option);
+fprintf(stderr, ANSI_COLOR_RED "commande inconnue: %s...\n" ANSI_COLOR_RESET, option);
 }
 }
 return NULL;
@@ -221,7 +227,7 @@ while(1) {
 bytes = recv(threadinfo.sockfd, (void *)&packet, sizeof(struct PACKET), 0);
 
 if(!bytes) {
-fprintf(stderr, ANSI_COLOR_RED "Connection lost from [%d] %s...\n" ANSI_COLOR_RESET, threadinfo.sockfd, threadinfo.user);
+fprintf(stderr, ANSI_COLOR_RED "Connexion perdue de [%d] %s...\n" ANSI_COLOR_RESET, threadinfo.sockfd, threadinfo.user);
 pthread_mutex_lock(&clientlist_mutex);
 list_delete(&client_list, &threadinfo);
 pthread_mutex_unlock(&clientlist_mutex);
@@ -231,7 +237,7 @@ break;
 printf("[%d] %s %s %s\n", threadinfo.sockfd, packet.option, packet.user, packet.buff);
 
 if(!strcmp(packet.option, "change")) {
-printf("Set user to %s\n", packet.user);
+printf("Réglez utilisateur %s\n", packet.user);
 pthread_mutex_lock(&clientlist_mutex);
 for(curr = client_list.head; curr != NULL; curr = curr->next) {
 if(compare(&curr->threadinfo, &threadinfo) == 0) {
@@ -317,14 +323,14 @@ sent = send(curr->threadinfo.sockfd, (void *)&spacket, sizeof(struct PACKET), 0)
 pthread_mutex_unlock(&clientlist_mutex);
 }
 else if(!strcmp(packet.option, "exit")) {
-printf("[%d] %s has disconnected...\n", threadinfo.sockfd, threadinfo.user);
+printf("[%d] %s se est déconnecté...\n", threadinfo.sockfd, threadinfo.user);
 pthread_mutex_lock(&clientlist_mutex);
 list_delete(&client_list, &threadinfo);
 pthread_mutex_unlock(&clientlist_mutex);
 break;
 }
 else {
-fprintf(stderr, "wrong data send from [%d] %s...\n", threadinfo.sockfd, threadinfo.user);
+fprintf(stderr, "données erronées envoyées par[%d] %s...\n", threadinfo.sockfd, threadinfo.user);
 }
 }
 /* clean up */
