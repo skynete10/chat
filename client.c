@@ -50,7 +50,7 @@ int sockfd; // socket file descriptor
 int isconnected, sockfd;
 char option[LINEBUFF];
 struct USER me;
-
+int num;
 int connect_with_server();
 void setuser(struct USER *me);//set username
 void logout(struct USER *me);//desconnecter de serveur
@@ -59,7 +59,7 @@ void login(struct USER *me);//login
 void *receiver(void *param);//receive message
 void sendtoall(struct USER *me, char *msg); //broadcast
 void sendtoclient(struct USER *me, char * target, char *msg);//send to specific user
-void update_name(int * tel, char *msg);
+void update_name(struct USER *me,char *target, char *msg);
 void sendencrypt(struct USER *me, char * target, char *msg);
 void sendfile(struct USER *me, char * target, char *fname,char *buff);
 static int callback(void *NotUsed, int argc, char **argv, char **azColName){
@@ -170,8 +170,20 @@ sendencrypt(&me, temp, ptr);
 else if(!strncmp(option, "broadcast", 9)) {
 sendtoall(&me, &option[9]);
 }
-else if(!strncmp(option, "update", 9)) {
-sendtoall(&me, &option[9]);
+else if(!strncmp(option, "update", 6)) {
+char *ptr = strtok(option, " ");
+char temp[userLEN];
+ptr = strtok(0, " ");
+memset(temp, 0, sizeof(char) * userLEN);
+if(ptr != NULL) {
+userlen = strlen(ptr);
+if(userlen > userLEN) ptr[userLEN] = 0;
+strcpy(temp, ptr);
+while(*ptr) ptr++; ptr++;
+while(*ptr <= ' ') ptr++;
+
+update_name(&me, temp, ptr);
+}
 }
 else if(!strncmp(option, "list", 4)) {
  sqlite3 *db;
@@ -227,7 +239,7 @@ if(sockfd >= 0) {
 isconnected = 1;
 me->sockfd = sockfd;
 if(strcmp(me->user, "default")) setuser(me);
-int num;
+
 char term;
 fprintf(stderr, ANSI_COLOR_GREEN "please enter your phone number:\n" ANSI_COLOR_RESET);
 if(scanf("%d%c", &num, &term) != 2 || term != '\n')
@@ -496,13 +508,13 @@ void profile(struct USER *me, char *msg){
         return;
     }
     
-    char *sql = "SELECT * FROM users WHERE username = ?";
+    char *sql = "SELECT * FROM users WHERE telephone = ?";
         
-    rc = sqlite3_prepare_v2(db, sql, -1, &res, 0);
+    rc = sqlite3_prepare_v2(db, sql, -1, &res, NULL);
     
     if (rc == SQLITE_OK) {
        int telephone=atoi(msg);
-       sqlite3_bind_blob(res, 0, msg, sizeof(msg), SQLITE_STATIC);
+       sqlite3_bind_int(res, 1, telephone);
     } else {
         
         fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db));
@@ -523,5 +535,34 @@ void profile(struct USER *me, char *msg){
     sqlite3_close(db);
     
     return;
+}
+void update_name(struct USER *me,char *target,char *msg){
+ sqlite3 *db;
+    char *err_msg = 0;
+    sqlite3_stmt *res;
+    int rc = sqlite3_open("chat.db", &db);
+    
+     if (rc == SQLITE_OK) {
+    
+     	
+ const char *sql = "update users Set age = ? Where telephone = ?";
+    if(sqlite3_prepare_v2(db, sql, -1, &res, NULL) != SQLITE_OK)
+       printf("Error while creating update statement. %s", sqlite3_errmsg(db));
+}
+int age=atoi(msg);
+sqlite3_bind_int(res, 1,age);
 
+sqlite3_bind_int(res, 2 , num);
+
+
+char* errmsg;
+sqlite3_exec(db, "COMMIT", NULL, NULL, &errmsg);
+
+if(SQLITE_DONE != sqlite3_step(res))
+    printf("Error while updating. %s", sqlite3_errmsg(db));
+sqlite3_finalize(res);
+
+
+sqlite3_close(db);
+	printf("%s,%s\n", target,msg);
 }
