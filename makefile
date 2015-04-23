@@ -1,4 +1,4 @@
 all:
-	  gcc -o chatC chatC.c -lpthread
+	  gcc -o client client.c -lpthread -l sqlite3
 
-	  gcc -o chatS chatS.c -lpthread
+	  gcc -o server server.c -lpthread -l sqlite3
