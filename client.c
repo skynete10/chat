@@ -268,19 +268,19 @@ printf(pink "%s est Connecté\n" ANSI_COLOR_RESET, me->user);
    /* Execute SQL statement */
    rc = sqlite3_exec(db, sql, callback, 0, &zErrMsg);
    if( rc != SQLITE_OK ){
-      fprintf(stderr, "SQL error: %s\n", zErrMsg);
+      fprintf(stderr, ANSI_COLOR_RED "username %s existe déjà\n" ANSI_COLOR_RESET , me->user);
       sqlite3_free(zErrMsg);
       isconnected=0;
    }else{
       fprintf(stdout, "Documents créés avec succès\n");
-   }
+   
    sqlite3_close(db);
   
 printf(ANSI_COLOR_YELLOW "prêt à envoyer et recevoir des messages \n" ANSI_COLOR_RESET);
 sleep(1);
 struct THREADINFO threadinfo;
 pthread_create(&threadinfo.thread_ID, NULL, receiver, (void *)&threadinfo);
-
+}
 }
 else {
 fprintf(stderr, "Connection rejected...\n");
@@ -326,6 +326,31 @@ return newfd;
 }
 
 void logout(struct USER *me) {
+	sqlite3 *db;
+    char *err_msg = 0;
+    sqlite3_stmt *res;
+    int rc = sqlite3_open("chat.db", &db);
+    
+     if (rc == SQLITE_OK) {
+    
+     	
+ const char *sql = "delete from users where username = ?";
+    if(sqlite3_prepare_v2(db, sql, -1, &res, NULL) != SQLITE_OK)
+       printf("Error while creating update statement. %s", sqlite3_errmsg(db));
+}
+rc=sqlite3_bind_text(res, 1,me->user,-1,0);
+
+
+
+char* errmsg;
+sqlite3_exec(db, "COMMIT", NULL, NULL, &errmsg);
+
+if(SQLITE_DONE != sqlite3_step(res))
+    printf("Error while deleting. %s", sqlite3_errmsg(db));
+sqlite3_finalize(res);
+
+
+sqlite3_close(db);
 int sent;
 struct PACKET packet;
 if(!isconnected) {
@@ -564,5 +589,5 @@ sqlite3_finalize(res);
 
 
 sqlite3_close(db);
-	printf("%s,%s\n", target,msg);
+	printf("change age: %s\n", msg);
 }
