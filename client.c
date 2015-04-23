@@ -5,12 +5,12 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <pthread.h>
-#include </home/skynete10/Desktop/cryptage.h>
+#include </root/cryptage.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-
+#include <sqlite3.h>
 #define SERVERIP "127.0.0.1"
 #define SERVERPORT 8080
 
@@ -39,6 +39,9 @@ char name[NAMESIZE];
 struct USER {
 int sockfd; // user's socket file descriptor: objets génériques avec des méthodes génériques (open(), close(), read(), write(), ...).
 char user[userLEN]; // user's name
+char tel[32];
+int age[16];
+char address[32];
 };
 struct THREADINFO {
 pthread_t thread_ID; // thread's pointer:récupérer l'ID d'un thread
@@ -51,13 +54,40 @@ struct USER me;
 int connect_with_server();
 void setuser(struct USER *me);//set username
 void logout(struct USER *me);//desconnecter de serveur
+void profile(struct USER *me, char *msg);
 void login(struct USER *me);//login
 void *receiver(void *param);//receive message
 void sendtoall(struct USER *me, char *msg); //broadcast
 void sendtoclient(struct USER *me, char * target, char *msg);//send to specific user
+void update_name(int * tel, char *msg);
 void sendencrypt(struct USER *me, char * target, char *msg);
 void sendfile(struct USER *me, char * target, char *fname,char *buff);
+static int callback(void *NotUsed, int argc, char **argv, char **azColName){
+   int i;
+      printf("------------------------------------\n");
+   for(i=0; i<argc; i++){
+   	
+      printf(ANSI_COLOR_CYAN "|%s               %s             \n" ANSI_COLOR_RESET, azColName[i], argv[i] ? argv[i] : "NULL");
+      printf("------------------------------------\n");
+   }
+   printf("\n");
+   return 0;
+}
+
 int main(int argc, char **argv) {
+	  sqlite3 *db;
+   char *zErrMsg = 0;
+   int  rc;
+   char *sql;
+
+   rc = sqlite3_open("chat.db", &db);
+
+   if( rc ){
+      fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+      exit(0);
+   }else{
+      fprintf(stderr, "Base de données [chat.db] ouvert avec succès\n");
+   }
 int sockfd, userlen;
 memset(&me, 0, sizeof(struct USER));
 while(gets(option)) {
@@ -140,11 +170,44 @@ sendencrypt(&me, temp, ptr);
 else if(!strncmp(option, "broadcast", 9)) {
 sendtoall(&me, &option[9]);
 }
+else if(!strncmp(option, "update", 9)) {
+sendtoall(&me, &option[9]);
+}
 else if(!strncmp(option, "list", 4)) {
+ sqlite3 *db;
+   char *zErrMsg = 0;
+   int rc;
+   char *sql;
+   const char* data = "Callback function called";
 
+   /* Open database */
+   rc = sqlite3_open("chat.db", &db);
+   if( rc ){
+      fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+      exit(0);
+   }else{
+      fprintf(stderr, "Opened database successfully\n");
+   }
+
+   /* Create SQL statement */
+   sql = "SELECT * from users";
+
+   /* Execute SQL statement */
+   rc = sqlite3_exec(db, sql, callback, (void*)data, &zErrMsg);
+   if( rc != SQLITE_OK ){
+      fprintf(stderr, "SQL error: %s\n", zErrMsg);
+      sqlite3_free(zErrMsg);
+   }else{
+      fprintf(stdout, "Operation done successfully\n");
+   }
+  
+  
 }
 else if(!strncmp(option, "logout", 6)) {
 logout(&me);
+}
+else if(!strncmp(option, "profil", 6)) {
+profile(&me, &option[6]);
 }
 else fprintf(stderr, "Unknown option...\n");
 }
@@ -152,6 +215,8 @@ return 0;
 }
 
 void login(struct USER *me) {
+
+	
 int recvd;
 if(isconnected) {
 fprintf(stderr, "You are already connected to server at %s:%d\n", SERVERIP, SERVERPORT);
@@ -162,7 +227,43 @@ if(sockfd >= 0) {
 isconnected = 1;
 me->sockfd = sockfd;
 if(strcmp(me->user, "default")) setuser(me);
+int num;
+char term;
+fprintf(stderr, ANSI_COLOR_GREEN "please enter your phone number:\n" ANSI_COLOR_RESET);
+if(scanf("%d%c", &num, &term) != 2 || term != '\n')
+    printf("failure\n");
+else
+    printf("valid integer followed by enter key\n");
 printf(pink "%s est Connecté\n" ANSI_COLOR_RESET, me->user);
+
+ sqlite3 *db;
+   char *zErrMsg = 0;
+   int rc;
+   char sql[900]=" ";
+
+   /* Open database */
+   rc = sqlite3_open("chat.db", &db);
+   if( rc ){
+      fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+      exit(0);
+   }else{
+      fprintf(stderr, "Opened database successfully\n");
+   }
+
+   /* Create SQL statement */
+   sprintf(sql,"INSERT INTO users (name,age,telephone,address,username) VALUES ('','','%d', '', '%s');",num,me->user);
+
+   /* Execute SQL statement */
+   rc = sqlite3_exec(db, sql, callback, 0, &zErrMsg);
+   if( rc != SQLITE_OK ){
+      fprintf(stderr, "SQL error: %s\n", zErrMsg);
+      sqlite3_free(zErrMsg);
+      isconnected=0;
+   }else{
+      fprintf(stdout, "Documents créés avec succès\n");
+   }
+   sqlite3_close(db);
+  
 printf(ANSI_COLOR_YELLOW "prêt à envoyer et recevoir des messages \n" ANSI_COLOR_RESET);
 sleep(1);
 struct THREADINFO threadinfo;
@@ -172,6 +273,7 @@ pthread_create(&threadinfo.thread_ID, NULL, receiver, (void *)&threadinfo);
 else {
 fprintf(stderr, "Connection rejected...\n");
 }
+
 }
 
 int connect_with_server() {
@@ -377,4 +479,49 @@ strcpy(&packet.buff[targetlen], " ");
 strcpy(&packet.buff[targetlen+1],c);
 /* send request to close this connetion */
 sent = send(sockfd, (void *)&packet, sizeof(struct PACKET), 0);
+}
+void profile(struct USER *me, char *msg){
+	printf("le profile de %s\n",msg );
+	 sqlite3 *db;
+    char *err_msg = 0;
+    sqlite3_stmt *res;
+    
+    int rc = sqlite3_open("chat.db", &db);
+    
+    if (rc != SQLITE_OK) {
+        
+        fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        
+        return;
+    }
+    
+    char *sql = "SELECT * FROM users WHERE username = ?";
+        
+    rc = sqlite3_prepare_v2(db, sql, -1, &res, 0);
+    
+    if (rc == SQLITE_OK) {
+       int telephone=atoi(msg);
+       sqlite3_bind_blob(res, 0, msg, sizeof(msg), SQLITE_STATIC);
+    } else {
+        
+        fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db));
+    }
+    
+    int step = sqlite3_step(res);
+    
+    if (step == SQLITE_ROW) {
+        
+        printf("name: %s\n", sqlite3_column_text(res, 4));
+         printf("age: %s\n", sqlite3_column_text(res, 1));
+          printf("telephone: %s\n", sqlite3_column_text(res, 2));
+           printf("address: %s\n", sqlite3_column_text(res, 3));
+        
+    } 
+
+    sqlite3_finalize(res);
+    sqlite3_close(db);
+    
+    return;
+
 }
