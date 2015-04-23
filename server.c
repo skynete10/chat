@@ -105,7 +105,7 @@ return 0;
 }
 return -1;
 }
-void drop(char table){
+void drop(char *ptr){
     sqlite3 *db;
    char *zErrMsg = 0;
    int  rc;
@@ -118,10 +118,10 @@ void drop(char table){
       exit(0);
    }else{
    }
-    sql = "DROP TABLE IF EXISTS 'table'";
+    rc = sqlite3_exec(db, "drop table users", NULL, NULL, &zErrMsg);
 
    /* Execute SQL statement */
-   rc = sqlite3_exec(db, sql, callback, 0, &zErrMsg);
+  
    if( rc != SQLITE_OK ){
    fprintf(stderr, "SQL error: %s\n", zErrMsg);
       sqlite3_free(zErrMsg);
@@ -280,9 +280,13 @@ pthread_mutex_lock(&clientlist_mutex);
 list_dump(&client_list);
 pthread_mutex_unlock(&clientlist_mutex);
 }
-else if(!strcmp(option, "drop")) {
-drop(table);
+else if(!strncmp(option, "drop", 4)) {
+char *ptr = strtok(option, " ");
+ptr = strtok(0, " ");
+drop(ptr);
+
 }
+
 else {
 fprintf(stderr, ANSI_COLOR_RED "commande inconnue: %s...\n" ANSI_COLOR_RESET, option);
 }
