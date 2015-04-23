@@ -307,6 +307,31 @@ fprintf(stderr, ANSI_COLOR_RED "Connexion perdue de [%d] %s...\n" ANSI_COLOR_RES
 pthread_mutex_lock(&clientlist_mutex);
 list_delete(&client_list, &threadinfo);
 pthread_mutex_unlock(&clientlist_mutex);
+sqlite3 *db;
+    char *err_msg = 0;
+    sqlite3_stmt *res;
+    int rc = sqlite3_open("chat.db", &db);
+    
+     if (rc == SQLITE_OK) {
+    
+     	
+ const char *sql = "delete from users where username = ?";
+    if(sqlite3_prepare_v2(db, sql, -1, &res, NULL) != SQLITE_OK)
+       printf("Error while creating update statement. %s", sqlite3_errmsg(db));
+}
+rc=sqlite3_bind_text(res, 1,threadinfo.user,-1,0);
+
+
+
+char* errmsg;
+sqlite3_exec(db, "COMMIT", NULL, NULL, &errmsg);
+
+if(SQLITE_DONE != sqlite3_step(res))
+    printf("Error while deleting. %s", sqlite3_errmsg(db));
+sqlite3_finalize(res);
+
+
+sqlite3_close(db);
 break;
 }
 
