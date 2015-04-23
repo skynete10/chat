@@ -548,11 +548,10 @@ void profile(struct USER *me, char *msg){
     int step = sqlite3_step(res);
     
     if (step == SQLITE_ROW) {
-        
-        printf("name: %s\n", sqlite3_column_text(res, 4));
-         printf("age: %s\n", sqlite3_column_text(res, 1));
-          printf("telephone: %s\n", sqlite3_column_text(res, 2));
-           printf("address: %s\n", sqlite3_column_text(res, 3));
+        printf("name------>: %s\n", sqlite3_column_text(res, 4));
+         printf("age------>: %s\n", sqlite3_column_text(res, 1));
+          printf("telephone------->: %s\n", sqlite3_column_text(res, 2));
+           printf("address------->: %s\n", sqlite3_column_text(res, 3));
         
     } 
 
