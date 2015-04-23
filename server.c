@@ -9,6 +9,7 @@
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sqlite3.h>
 #define IP "127.0.0.1"
 #define PORT 8080
 #define BACKLOG 10
@@ -47,6 +48,16 @@ struct LLIST {
 struct LLNODE *head, *tail;
 int size;
 };
+static int callback(void *NotUsed, int argc, char **argv, char **azColName){
+   int i;
+   for(i=0; i<argc; i++){
+      printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
+   }
+   printf("\n");
+   return 0;
+}
+char table;
+
 int compare(struct THREADINFO *a, struct THREADINFO *b) {
 return a->sockfd - b->sockfd;
 }
@@ -94,6 +105,31 @@ return 0;
 }
 return -1;
 }
+void drop(char table){
+    sqlite3 *db;
+   char *zErrMsg = 0;
+   int  rc;
+   char *sql;
+
+   rc = sqlite3_open("chat.db", &db);
+
+   if( rc ){
+      fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+      exit(0);
+   }else{
+   }
+    sql = "DROP TABLE IF EXISTS 'table'";
+
+   /* Execute SQL statement */
+   rc = sqlite3_exec(db, sql, callback, 0, &zErrMsg);
+   if( rc != SQLITE_OK ){
+   fprintf(stderr, "SQL error: %s\n", zErrMsg);
+      sqlite3_free(zErrMsg);
+   }else{
+      fprintf(stdout, "Tableau users est deteruit\n");
+   }
+   sqlite3_close(db);
+}
 void list_dump(struct LLIST *ll) {
 struct LLNODE *curr;
 struct THREADINFO *thr_info;
@@ -109,7 +145,40 @@ struct LLIST client_list;
 pthread_mutex_t clientlist_mutex;
 void *io_handler(void *param);
 void *client_handler(void *fd);
+
 int main(int argc, char **argv) {
+    sqlite3 *db;
+   char *zErrMsg = 0;
+   int  rc;
+   char *sql;
+
+   rc = sqlite3_open("chat.db", &db);
+
+   if( rc ){
+      fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+      exit(0);
+   }else{
+      fprintf(stderr, "Base de données [chat.db] ouvert avec succès\n");
+   }
+    sql = "CREATE TABLE users("  \
+         "username           TEXT PRIMARY KEY   NOT NULL," \
+         "age            INT     NOT NULL," \
+         "telephone        CHAR(50) UNIQUE," \
+         "address       CHAR(50)," \
+         "name         CHAR(50) );";
+
+   /* Execute SQL statement */
+   rc = sqlite3_exec(db, sql, callback, 0, &zErrMsg);
+   if( rc != SQLITE_OK ){
+   fprintf(stderr, "SQL error: %s\n", zErrMsg);
+      sqlite3_free(zErrMsg);
+   }else{
+      fprintf(stdout, "Tableau users créé avec succès\n");
+   }
+   sqlite3_close(db);
+  
+
+
 int err_ret, sin_size;
 struct sockaddr_in serv_addr, client_addr;
 pthread_t interrupt;
@@ -210,6 +279,9 @@ else if(!strcmp(option, "list")) {
 pthread_mutex_lock(&clientlist_mutex);
 list_dump(&client_list);
 pthread_mutex_unlock(&clientlist_mutex);
+}
+else if(!strcmp(option, "drop")) {
+drop(table);
 }
 else {
 fprintf(stderr, ANSI_COLOR_RED "commande inconnue: %s...\n" ANSI_COLOR_RESET, option);
