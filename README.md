@@ -8,3 +8,4 @@ specf username message---->send message to specifique target
 sfile username file------>send file to specifique target
 logout---->disconnection from server
 exit(for server)---->close connection
+oui client oui serveur
